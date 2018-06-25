@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Santa Monica Parking Availability</title>
+  <style>
+     html, body, #map {
+     height: 100%;
+     width: 100%;
+        }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.62.0/dist/L.Control.Locate.min.css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.62.0/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <div id="map">
+  </div>
+<script>
+
+  var mboxStreets = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiY29jZ2lzIiwiYSI6ImNpamJra2FqbjAwY2d1bG00YXUwOWEzNTYifQ.EA1UdPL7_QvOZZedIOG_Ug', {
+      attribution: 'Mapbox',
+      maxZoom: 20
+  });
+  
+  var mboxStreetAerial = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets-satellite/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiY29jZ2lzIiwiYSI6ImNpamJra2FqbjAwY2d1bG00YXUwOWEzNTYifQ.EA1UdPL7_QvOZZedIOG_Ug', {
+      attribution: 'Mapbox',
+      maxZoom: 20
+  });
+      
+  var OSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'OpenStreetMap',
+      maxZoom: 19
+  }); 
+  
+  var LAstreets = L.tileLayer('https://cache.gis.lacounty.gov/cache/rest/services/LACounty_Cache/LACounty_StreetMap/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'LA County GIS',
+      maxZoom: 20
+  });
+  
+  var LAorthos = L.tileLayer('https://public.gis.lacounty.gov/public/rest/services/LACounty_Cache/LACounty_Aerial_2013/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'LA County GIS',
+      maxZoom: 20
+  }); 
+  
+  var LAbase = L.tileLayer('https://public.gis.lacounty.gov/public/rest/services/LACounty_Cache/LACounty_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'LA County GIS',
+      maxZoom: 20
+  }); 
+   
+  
+      
+  var baseLayers = {
+  	"LA County GIS Base": LAbase,
+  	"LA County GIS Streets": LAstreets,
+  	"LA County GIS 2013 Ortho": LAorthos,
+  	"Mapbox Streets": mboxStreets,
+  	"Mapbox Streets + Aerial": mboxStreetAerial,
+  	"OSM": OSM	
+  };
+  
+  //var map = L.map('map', {
+  	//layers: [LAbase],
+  //}).setView([34.018203, -118.488], 14);
+
+  var map = L.map('map', {
+  	layers: [LAbase],
+  });
+    
+  var marker;
+  markerLayers = new L.featureGroup(); 
+  markerLayers.addTo(map);
+  
+  L.control.layers(baseLayers).addTo(map);
+  L.control.locate().addTo(map);
+      
+  $.ajax({
+      url:"https://parking.api.smgov.net/lots/",
+      dataType:"json",
+      accepts:"application/json",
+      type:"GET",
+      success: function(data) {
+        $(data).each(function(key, data) {
+        	dateString = data.last_update;
+        	year = dateString.substring(0,4);
+        	//Month function is one month ahead in UTC below
+        	month = dateString.substring(4,6) - 1;
+        	day = dateString.substring(6,8);
+        	hour = dateString.substring(9,11);
+        	minute = dateString.substring(11,13);
+        	second = dateString.substring(13,15);
+        	var lastUpdate = new Date(Date.UTC(year, month, day, hour, minute, second));
+        	lastUpdate = lastUpdate.toString();
+ 	
+        	popupContent = "<table><tr><td><h3><b>Available Spaces: " + data.available_spaces + "</b></h3></td></tr>" 
+        				   + "<tr><td>Name: " + data.name + "</td></tr>"
+        				   + "<tr><td>Address: " + data.street_address + "</td></tr>"
+        				   + "<tr><td>Description: " + data.description + "</td></tr>"
+        				   + "<tr><td>Updated: " + lastUpdate + "</td></tr>"
+        				   + "</table>"
+        	marker = new L.marker([data.latitude,data.longitude]).bindPopup(popupContent).addTo(markerLayers);
+        });
+        map.fitBounds(markerLayers.getBounds());
+      }
+  });
+   
+</script>
+</body>
+</html>
